@@ -27,16 +27,29 @@ builder.Services.AddMassTransit(config =>
 {
     config.AddConsumer<UpdateProductConsumer>();
 
-    config.UsingRabbitMq((ctx, cfg) =>
+
+    config.AddBus(provider => Bus.Factory.CreateUsingRabbitMq(cfg =>
     {
+        cfg.UseHealthCheck(provider);
         cfg.Host(appSettings.RabbitMQConnectionString);
-        cfg.UseHealthCheck(ctx);
-        cfg.UseMessageRetry(r => r.Immediate(3));
-        cfg.ReceiveEndpoint("update-item-queue", c => {
-            c.ConfigureConsumer<UpdateProductConsumer>(ctx);
-            c.UseMessageRetry(r => r.Immediate(3));
+        cfg.ReceiveEndpoint("update-item-queue", ep =>
+        {
+            ep.PrefetchCount = 16;
+            ep.UseMessageRetry(r => r.Interval(2, 100));
+            ep.ConfigureConsumer<UpdateProductConsumer>(provider);
         });
-    });
+    }));
+
+    //config.UsingRabbitMq((ctx, cfg) =>
+    //{
+    //    cfg.Host(appSettings.RabbitMQConnectionString);
+    //    cfg.UseHealthCheck(ctx);
+    //    cfg.UseMessageRetry(r => r.Immediate(3));
+    //    cfg.ReceiveEndpoint("update-item-queue", c => {
+    //        c.ConfigureConsumer<UpdateProductConsumer>(ctx);
+    //        c.UseMessageRetry(r => r.Immediate(3));
+    //    });
+    //});
 });
 
 
